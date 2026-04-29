@@ -71,6 +71,15 @@ def package_uploaded_at_ms(package_path: Path, manifest: dict) -> int:
     return int(package_path.stat().st_mtime * 1000)
 
 
+def int_manifest_value(manifest: dict, name: str, default: int = 0) -> int:
+    value = manifest.get(name, default)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return default
+
+
 def read_package(path: Path) -> dict:
     if path.stat().st_size > MAX_PACKAGE_BYTES:
         raise ValueError(f"{path}: package is too large")
@@ -100,6 +109,10 @@ def read_package(path: Path) -> dict:
                 raise ValueError(f"{path}: manifest is missing {text_field}")
             if not isinstance(manifest[text_field], str):
                 raise ValueError(f"{path}: manifest {text_field} must be a string")
+        if "submitterGitHub" in manifest and not isinstance(manifest["submitterGitHub"], str):
+            raise ValueError(f"{path}: manifest submitterGitHub must be a string")
+        if "submissionIssue" in manifest and not isinstance(manifest["submissionIssue"], int):
+            raise ValueError(f"{path}: manifest submissionIssue must be an integer")
         expected_names = {"manifest.json", "filter.cube"}
         if manifest.get("previewPath"):
             expected_names.add(manifest["previewPath"])
@@ -161,6 +174,8 @@ def build_index() -> dict:
                 "tags": manifest.get("tags", []),
                 "license": manifest.get("license", ""),
                 "source": manifest.get("source", ""),
+                "submitterGitHub": manifest.get("submitterGitHub", ""),
+                "submissionIssue": int_manifest_value(manifest, "submissionIssue"),
                 "uploadedAt": package_uploaded_at_ms(package_path, manifest),
                 "packageUrl": f"../filters/{package_sha}.opcfilter.zip",
                 "packageSha256": package_sha,

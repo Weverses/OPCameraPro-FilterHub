@@ -1,0 +1,106 @@
+name: Auto Remove Filter Submission
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+      - reopened
+
+permissions:
+  contents: write
+  issues: write
+  pages: write
+  id-token: write
+
+jobs:
+  remove:
+    if: github.event.issue.state == 'open' && (contains(github.event.issue.labels.*.name, 'filter-removal') || startsWith(github.event.issue.title, '[Remove]'))
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Remove package
+        id: remove
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          python3 tools/remove_submission.py --issue "${{ github.event.issue.number }}" > remove.log 2>&1
+          status=$?
+          {
+            echo "status=$status"
+            echo "body<<EOF"
+            cat remove.log
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Commit removal
+        id: commit
+        if: steps.remove.outputs.status == '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A packages
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "Remove filter from issue #${{ github.event.issue.number }}"
+          git push origin main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+      - name: Build Pages artifact
+        if: steps.commit.outputs.changed == 'true'
+        run: python3 tools/build_index.py
+      - name: Upload Pages artifact
+        if: steps.commit.outputs.changed == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - name: Deploy Pages
+        if: steps.commit.outputs.changed == 'true'
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Comment success and close
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REMOVE_BODY: ${{ steps.remove.outputs.body }}
+        run: |
+          body_file="$(mktemp)"
+          {
+            echo "[OK] The filter package has been removed by original submitter request."
+            echo
+            echo "[OK] 已根据原投稿者的自助删除申请下架该滤镜包。"
+            echo
+            echo "\`\`\`json"
+            echo "$REMOVE_BODY"
+            echo "\`\`\`"
+          } > "$body_file"
+          gh issue comment "${{ github.event.issue.number }}" --body-file "$body_file"
+          gh issue close "${{ github.event.issue.number }}" --reason completed
+      - name: Comment failure
+        if: steps.remove.outputs.status != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REMOVE_BODY: ${{ steps.remove.outputs.body }}
+        run: |
+          body_file="$(mktemp)"
+          {
+            echo "[FAIL] Self-service removal failed. Only the original GitHub submitter can remove a filter automatically."
+            echo
+            echo "[FAIL] 自助删除失败。只有原投稿 GitHub 账号可以自动删除该滤镜。"
+            echo
+            echo "\`\`\`text"
+            echo "$REMOVE_BODY"
+            echo "\`\`\`"
+          } > "$body_file"
+          gh issue comment "${{ github.event.issue.number }}" --body-file "$body_file"

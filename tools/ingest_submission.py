@@ -81,7 +81,13 @@ def metadata_value(fields: dict[str, str], key: str, fallback: str = "", max_len
     return clean_issue_field_value(fields.get(key, fallback), max_length=max_length)
 
 
-def rewrite_package_metadata(source_path: Path, target_path: Path, issue_fields: dict[str, str]) -> None:
+def rewrite_package_metadata(
+    source_path: Path,
+    target_path: Path,
+    issue_fields: dict[str, str],
+    submitter_github: str = "",
+    submission_issue: int = 0,
+) -> None:
     package = build_index.read_package(source_path)
     manifest = dict(package["manifest"])
 
@@ -97,6 +103,8 @@ def rewrite_package_metadata(source_path: Path, target_path: Path, issue_fields:
     manifest["description"] = description
     manifest["source"] = source
     manifest["license"] = license_name
+    manifest["submitterGitHub"] = submitter_github
+    manifest["submissionIssue"] = submission_issue
 
     with zipfile.ZipFile(source_path) as archive:
         entries = {
@@ -190,6 +198,8 @@ def ingest_package(source_path: Path, dry_run: bool) -> dict:
         "displayName": manifest["displayName"],
         "author": manifest.get("author", ""),
         "license": manifest.get("license", ""),
+        "submitterGitHub": manifest.get("submitterGitHub", ""),
+        "submissionIssue": manifest.get("submissionIssue", 0),
         "target": str(target_path.relative_to(ROOT)),
         "packageSha256": package_sha,
         "cubeSha256": cube_sha,
@@ -210,8 +220,9 @@ def main() -> int:
         raise SystemExit("Missing --token or GITHUB_TOKEN")
 
     issue = fetch_issue(args.repo, args.issue, args.token)
+    submitter_github = issue.get("user", {}).get("login", "")
     issue_fields = extract_issue_fields(issue.get("body", ""))
-    issue_fields.setdefault("author", issue.get("user", {}).get("login", ""))
+    issue_fields.setdefault("author", submitter_github)
     urls = extract_package_urls(issue.get("body", ""))
     if not urls:
         raise SystemExit("No .opcfilter.zip attachment URL found in the issue body")
@@ -222,7 +233,13 @@ def main() -> int:
         package_path = Path(temp_dir) / "submission.opcfilter.zip"
         enriched_path = Path(temp_dir) / "submission_enriched.opcfilter.zip"
         download_package(urls[0], package_path)
-        rewrite_package_metadata(package_path, enriched_path, issue_fields)
+        rewrite_package_metadata(
+            package_path,
+            enriched_path,
+            issue_fields,
+            submitter_github=submitter_github,
+            submission_issue=args.issue,
+        )
         result = ingest_package(enriched_path, dry_run=args.dry_run)
 
     print(json.dumps(result, ensure_ascii=True, indent=2))

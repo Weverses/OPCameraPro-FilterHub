@@ -42,6 +42,10 @@ python3 tools/build_index.py --check
 
 ## Takedown Flow / 投诉删除流程
 
+Original submitters can remove their own filters automatically by opening the `Filter removal request` issue form from the same GitHub account that submitted the filter. Provide the package SHA-256, cube SHA-256, package URL, or exact filter name. If the requester matches the recorded submitter, GitHub Actions deletes the matching file from `packages/`, rebuilds Pages, comments on the issue, and closes it automatically.
+
+原投稿者可以使用同一个 GitHub 账号打开 `Filter removal request / 滤镜删除申请` 表单来自助删除自己的滤镜。填写包 SHA-256、cube SHA-256、包链接或准确滤镜名称即可。若申请账号与记录的原投稿账号一致，GitHub Actions 会自动删除 `packages/` 中对应文件、重新部署 Pages、评论并关闭 issue。
+
 If you believe a published filter infringes your rights or violates its license, open a takedown issue in this repository and include:
 
 - Filter name or package URL.

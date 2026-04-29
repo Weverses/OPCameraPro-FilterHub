@@ -1,0 +1,44 @@
+name: Filter removal request / 滤镜删除申请
+description: Remove a filter you submitted / 删除你本人投稿的滤镜
+title: "[Remove] "
+labels:
+  - filter-removal
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Author self-service removal / 作者自助删除
+
+        This form is for self-service removal by the original GitHub account that submitted the filter.
+        Automation will delete the package only when this issue creator matches the original submitter recorded by FilterHub.
+
+        此表单用于原投稿 GitHub 账号自助删除滤镜。
+        只有当本删除申请的创建者与 FilterHub 记录的原投稿账号一致时，自动流程才会删除滤镜包。
+
+        Non-author copyright or licensing complaints should use the takedown process in README and will not be auto-deleted by this workflow.
+        非作者版权或授权投诉请走 README 中的 takedown 流程，本自动流程不会直接删除。
+  - type: input
+    id: filter_identifier
+    attributes:
+      label: Filter identifier / 滤镜标识
+      description: Paste the package SHA-256, cube SHA-256, package URL, or exact filter name. / 请粘贴包 SHA-256、cube SHA-256、包链接，或准确滤镜名称。
+      placeholder: packageSha256 / cubeSha256 / Dfun S
+    validations:
+      required: true
+  - type: textarea
+    id: reason
+    attributes:
+      label: Reason / 原因
+      description: Optional note for the public removal record. / 可选，说明删除原因。
+      placeholder: I no longer want to share this filter. / 我不再希望分享这个滤镜。
+    validations:
+      required: false
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation / 确认事项
+      options:
+        - label: I am using the same GitHub account that originally submitted this filter. / 我正在使用最初投稿该滤镜的同一个 GitHub 账号。
+          required: true
+        - label: I understand this action removes the filter package from FilterHub after Pages redeploys. / 我理解此操作会在 Pages 重新部署后从 FilterHub 下架该滤镜包。
+          required: true
