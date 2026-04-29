@@ -1,0 +1,56 @@
+name: Filter submission
+description: Submit a community LUT package for review
+title: "[Filter] "
+labels:
+  - filter-submission
+body:
+  - type: input
+    id: display_name
+    attributes:
+      label: Display name
+      description: The name shown in OPCameraPro.
+    validations:
+      required: true
+  - type: input
+    id: author
+    attributes:
+      label: Author
+      description: Name or handle to credit.
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Briefly describe the look, use case, and source.
+    validations:
+      required: true
+  - type: dropdown
+    id: license
+    attributes:
+      label: License
+      options:
+        - CC BY 4.0
+        - CC BY-SA 4.0
+        - CC0
+        - Original author grants OPCameraPro distribution permission
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: package
+    attributes:
+      label: Package attachment
+      description: Attach the `.opcfilter.zip` exported from OPCameraPro.
+      placeholder: Drag the package file here after creating the issue.
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I created or have permission to share this LUT.
+          required: true
+        - label: I understand maintainers may reject unsafe, broken, duplicate, or unclear submissions.
+          required: true
