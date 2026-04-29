@@ -1,56 +1,76 @@
-name: Filter submission
-description: Submit a community LUT package for review
+name: Filter submission / 滤镜投稿
+description: Submit a community LUT package / 提交社区 LUT 滤镜包
 title: "[Filter] "
 labels:
   - filter-submission
 body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Copyright and responsibility notice / 版权与责任声明
+
+        Please submit only LUTs that you created yourself or have explicit permission to redistribute.
+        Community-submitted filters are not official OPCameraPro content, and are not endorsed, guaranteed, or licensed by OPCameraPro.
+        The submitter is solely responsible for copyright, licensing, legality, and any disputes arising from the submitted package.
+
+        请只提交你本人创作、或你已明确获得再分发授权的 LUT。
+        社区投稿滤镜不属于 OPCameraPro 官方内容，OPCameraPro 不对其版权、来源、效果、合法性或后续争议作任何担保。
+        投稿者需自行承担该滤镜包的版权、授权、合法性以及由此产生的一切责任。
+
+        After submission, automation will validate the `.opcfilter.zip` package. Valid packages may be published automatically.
+        提交后，自动流程会校验 `.opcfilter.zip` 包；校验通过的包可能会被自动发布。
   - type: input
     id: display_name
     attributes:
-      label: Display name
-      description: The name shown in OPCameraPro.
+      label: Display name / 显示名称
+      description: The name shown in OPCameraPro. / 在 OPCameraPro 中显示的名称。
     validations:
       required: true
   - type: input
     id: author
     attributes:
-      label: Author
-      description: Name or handle to credit.
+      label: Author / 作者
+      description: Name or handle to credit. / 用于署名的名称或 ID。
     validations:
       required: true
   - type: textarea
     id: description
     attributes:
-      label: Description
-      description: Briefly describe the look, use case, and source.
+      label: Description / 描述
+      description: Briefly describe the look, use case, and source. / 简要描述滤镜风格、用途和来源。
     validations:
       required: true
   - type: dropdown
     id: license
     attributes:
-      label: License
+      label: License / 授权
+      description: Select the license or permission basis for redistribution. / 请选择该 LUT 可被再分发的授权依据。
       options:
         - CC BY 4.0
         - CC BY-SA 4.0
         - CC0
-        - Original author grants OPCameraPro distribution permission
+        - Original author grants redistribution permission / 原作者授权再分发
         - Other
     validations:
       required: true
   - type: textarea
     id: package
     attributes:
-      label: Package attachment
-      description: Attach the `.opcfilter.zip` exported from OPCameraPro.
-      placeholder: Drag the package file here after creating the issue.
+      label: Package attachment / 滤镜包附件
+      description: Attach the `.opcfilter.zip` exported from OPCameraPro. / 请上传从 OPCameraPro 导出的 `.opcfilter.zip`。
+      placeholder: Drag the package file here. / 将滤镜包文件拖到这里。
     validations:
       required: true
   - type: checkboxes
     id: confirmation
     attributes:
-      label: Confirmation
+      label: Confirmation / 确认事项
       options:
-        - label: I created or have permission to share this LUT.
+        - label: I created this LUT myself, or I have explicit permission to redistribute it. / 该 LUT 由我本人创作，或我已获得明确的再分发授权。
           required: true
-        - label: I understand maintainers may reject unsafe, broken, duplicate, or unclear submissions.
+        - label: I understand this is a community submission and is not official OPCameraPro content. / 我理解这是社区投稿内容，不代表 OPCameraPro 官方内容。
+          required: true
+        - label: I accept that copyright, licensing, legality, and related disputes are my own responsibility, not OPCameraPro's responsibility. / 我接受版权、授权、合法性及相关争议责任由我本人承担，与 OPCameraPro 无关。
+          required: true
+        - label: I understand automation may reject unsafe, broken, duplicate, unauthorized, or unclear submissions. / 我理解自动流程可能拒绝不安全、损坏、重复、授权不明或信息不清的投稿。
           required: true

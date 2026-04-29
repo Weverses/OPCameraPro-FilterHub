@@ -141,8 +141,8 @@ def main() -> int:
         result = ingest_package(package_path, dry_run=args.dry_run)
 
     print(json.dumps(result, ensure_ascii=True, indent=2))
-    if result["status"] == "duplicate":
-        raise SystemExit("This LUT already exists in packages/")
+    if result["status"] in {"duplicate", "exists"}:
+        raise SystemExit("This LUT or package already exists in packages/")
     return 0
 
 

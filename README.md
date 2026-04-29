@@ -12,10 +12,9 @@ Seed repository for the public `Weverses/OPCameraPro-FilterHub` GitHub Pages sou
 ## Maintainer Flow
 
 1. Users submit `.opcfilter.zip` through the `Filter submission` issue form.
-2. `Validate Filter Submission` checks the attachment automatically and comments with the result.
-3. If the package looks acceptable, add the `accepted` label to the issue.
-4. `Accept Filter Submission` downloads the package, validates it again, commits it into `packages/`, and closes the issue.
-5. `Publish FilterHub` rebuilds `public/index/v1.json` and deploys GitHub Pages.
+2. `Auto Accept Filter Submission` downloads and validates the package automatically.
+3. Valid packages are committed into `packages/`, published to GitHub Pages, and the issue is closed automatically.
+4. Invalid, unsafe, duplicate, or malformed packages get a failure comment and stay open for resubmission.
 
 Manual validation is still available:
 
