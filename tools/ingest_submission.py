@@ -8,6 +8,7 @@ import sys
 import tempfile
 import urllib.error
 import urllib.request
+import zipfile
 from pathlib import Path
 
 import build_index
@@ -16,6 +17,15 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGES_DIR = ROOT / "packages"
 MAX_DOWNLOAD_BYTES = 24 * 1024 * 1024
 ATTACHMENT_URL_RE = re.compile(r"https://[^\s)\]]+\.opcfilter\.zip", re.IGNORECASE)
+ISSUE_HEADING_RE = re.compile(r"^###\s+(.+?)\s*$", re.MULTILINE)
+
+ISSUE_FIELD_ALIASES = {
+    "display_name": ("display name", "显示名称"),
+    "author": ("author", "作者"),
+    "description": ("description", "描述"),
+    "source": ("source", "来源"),
+    "license": ("license", "授权"),
+}
 
 
 def github_request(url: str, token: str) -> dict:
@@ -43,6 +53,75 @@ def extract_package_urls(issue_body: str) -> list[str]:
         if url not in urls:
             urls.append(url)
     return urls
+
+
+def clean_issue_field_value(value: str, max_length: int = 2000) -> str:
+    normalized = "\n".join(line.rstrip() for line in value.splitlines()).strip()
+    return normalized[:max_length].strip()
+
+
+def extract_issue_fields(issue_body: str) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    matches = list(ISSUE_HEADING_RE.finditer(issue_body or ""))
+    for index, match in enumerate(matches):
+        heading = match.group(1).strip().lower()
+        start = match.end()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(issue_body or "")
+        value = clean_issue_field_value((issue_body or "")[start:end])
+        if not value:
+            continue
+        for key, aliases in ISSUE_FIELD_ALIASES.items():
+            if any(alias in heading for alias in aliases):
+                fields[key] = value
+                break
+    return fields
+
+
+def metadata_value(fields: dict[str, str], key: str, fallback: str = "", max_length: int = 2000) -> str:
+    return clean_issue_field_value(fields.get(key, fallback), max_length=max_length)
+
+
+def rewrite_package_metadata(source_path: Path, target_path: Path, issue_fields: dict[str, str]) -> None:
+    package = build_index.read_package(source_path)
+    manifest = dict(package["manifest"])
+
+    display_name = metadata_value(issue_fields, "display_name", manifest.get("displayName", ""), 120)
+    author = metadata_value(issue_fields, "author", manifest.get("author", ""), 120)
+    description = metadata_value(issue_fields, "description", manifest.get("description", ""), 2000)
+    source = metadata_value(issue_fields, "source", manifest.get("source", ""), 2000)
+    license_name = metadata_value(issue_fields, "license", manifest.get("license", ""), 200)
+
+    if display_name:
+        manifest["displayName"] = display_name
+    manifest["author"] = author
+    manifest["description"] = description
+    manifest["source"] = source
+    manifest["license"] = license_name
+
+    with zipfile.ZipFile(source_path) as archive:
+        entries = {
+            build_index.normalize_package_path(name): archive.read(name)
+            for name in archive.namelist()
+            if not name.endswith("/")
+        }
+
+    entries["manifest.json"] = (
+        json.dumps(manifest, ensure_ascii=True, indent=2) + "\n"
+    ).encode("utf-8")
+    if manifest.get("licensePath") == "LICENSE.txt":
+        existing_license = entries.get("LICENSE.txt", b"").decode("utf-8", errors="replace")
+        if "unspecified" in existing_license.lower() or not existing_license.strip():
+            entries["LICENSE.txt"] = (
+                f"License: {license_name or 'Unspecified'}\n"
+                f"Author: {author or 'Unknown'}\n"
+                f"Source: {source or 'Unspecified'}\n"
+            ).encode("utf-8")
+
+    ordered_names = ["manifest.json", "filter.cube", "preview.jpg", "LICENSE.txt"]
+    with zipfile.ZipFile(target_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name in ordered_names:
+            if name in entries:
+                archive.writestr(name, entries[name])
 
 
 def download_package(url: str, target: Path) -> None:
@@ -109,6 +188,8 @@ def ingest_package(source_path: Path, dry_run: bool) -> dict:
     return {
         "status": "ready" if dry_run else "added",
         "displayName": manifest["displayName"],
+        "author": manifest.get("author", ""),
+        "license": manifest.get("license", ""),
         "target": str(target_path.relative_to(ROOT)),
         "packageSha256": package_sha,
         "cubeSha256": cube_sha,
@@ -129,6 +210,8 @@ def main() -> int:
         raise SystemExit("Missing --token or GITHUB_TOKEN")
 
     issue = fetch_issue(args.repo, args.issue, args.token)
+    issue_fields = extract_issue_fields(issue.get("body", ""))
+    issue_fields.setdefault("author", issue.get("user", {}).get("login", ""))
     urls = extract_package_urls(issue.get("body", ""))
     if not urls:
         raise SystemExit("No .opcfilter.zip attachment URL found in the issue body")
@@ -137,8 +220,10 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="filterhub_submission_") as temp_dir:
         package_path = Path(temp_dir) / "submission.opcfilter.zip"
+        enriched_path = Path(temp_dir) / "submission_enriched.opcfilter.zip"
         download_package(urls[0], package_path)
-        result = ingest_package(package_path, dry_run=args.dry_run)
+        rewrite_package_metadata(package_path, enriched_path, issue_fields)
+        result = ingest_package(enriched_path, dry_run=args.dry_run)
 
     print(json.dumps(result, ensure_ascii=True, indent=2))
     if result["status"] in {"duplicate", "exists"}:

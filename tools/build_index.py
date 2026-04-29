@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 import shutil
+import subprocess
 import time
 import zipfile
 from pathlib import Path
@@ -46,6 +47,28 @@ def normalize_package_path(path: str) -> str:
     if any(segment in {".", ".."} for segment in segments):
         raise ValueError(f"invalid zip entry path: {path}")
     return "/".join(segments)
+
+
+def package_uploaded_at_ms(package_path: Path, manifest: dict) -> int:
+    relative_path = str(package_path.relative_to(ROOT))
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%ct", "--", relative_path],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        timestamp = result.stdout.strip()
+        if result.returncode == 0 and timestamp.isdigit():
+            return int(timestamp) * 1000
+    except OSError:
+        pass
+
+    exported_at = manifest.get("exportedAt")
+    if isinstance(exported_at, int) and exported_at > 0:
+        return exported_at
+    return int(package_path.stat().st_mtime * 1000)
 
 
 def read_package(path: Path) -> dict:
@@ -138,6 +161,7 @@ def build_index() -> dict:
                 "tags": manifest.get("tags", []),
                 "license": manifest.get("license", ""),
                 "source": manifest.get("source", ""),
+                "uploadedAt": package_uploaded_at_ms(package_path, manifest),
                 "packageUrl": f"../filters/{package_sha}.opcfilter.zip",
                 "packageSha256": package_sha,
                 "packageSize": package_size,
