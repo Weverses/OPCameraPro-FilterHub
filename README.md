@@ -11,8 +11,14 @@ Seed repository for the public `Weverses/OPCameraPro-FilterHub` GitHub Pages sou
 
 ## Maintainer Flow
 
-1. Review a user submission from the `Filter submission` issue form.
-2. Add the approved `.opcfilter.zip` to `packages/`.
-3. Run `python3 tools/build_index.py --check`.
-4. Merge the PR. GitHub Actions validates and deploys `public/` to Pages.
+1. Users submit `.opcfilter.zip` through the `Filter submission` issue form.
+2. `Validate Filter Submission` checks the attachment automatically and comments with the result.
+3. If the package looks acceptable, add the `accepted` label to the issue.
+4. `Accept Filter Submission` downloads the package, validates it again, commits it into `packages/`, and closes the issue.
+5. `Publish FilterHub` rebuilds `public/index/v1.json` and deploys GitHub Pages.
 
+Manual validation is still available:
+
+```bash
+python3 tools/build_index.py --check
+```

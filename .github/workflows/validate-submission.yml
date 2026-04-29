@@ -1,0 +1,61 @@
+name: Validate Filter Submission
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  validate:
+    if: contains(github.event.issue.labels.*.name, 'filter-submission')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate package attachment
+        id: validate
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          python3 tools/ingest_submission.py --issue "${{ github.event.issue.number }}" --dry-run > validation.log 2>&1
+          status=$?
+          {
+            echo "status=$status"
+            echo "body<<EOF"
+            cat validation.log
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Comment validation result
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATION_STATUS: ${{ steps.validate.outputs.status }}
+          VALIDATION_BODY: ${{ steps.validate.outputs.body }}
+        run: |
+          body_file="$(mktemp)"
+          if [ "$VALIDATION_STATUS" = "0" ]; then
+            {
+              echo "[OK] Package validation passed. A maintainer can add the \`accepted\` label to publish it automatically."
+              echo
+              echo "\`\`\`json"
+              echo "$VALIDATION_BODY"
+              echo "\`\`\`"
+            } > "$body_file"
+          else
+            {
+              echo "[FAIL] Package validation failed. Please export and attach a new \`.opcfilter.zip\` package."
+              echo
+              echo "\`\`\`text"
+              echo "$VALIDATION_BODY"
+              echo "\`\`\`"
+            } > "$body_file"
+          fi
+          gh issue comment "${{ github.event.issue.number }}" --body-file "$body_file"

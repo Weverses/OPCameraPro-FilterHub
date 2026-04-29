@@ -10,6 +10,9 @@ from pathlib import Path
 
 SCHEMA_VERSION = 1
 BUNDLE_TYPE = "opcamerapro-filter"
+MAX_PACKAGE_BYTES = 24 * 1024 * 1024
+MAX_CUBE_BYTES = 16 * 1024 * 1024
+MAX_PREVIEW_BYTES = 6 * 1024 * 1024
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGES_DIR = ROOT / "packages"
 PUBLIC_DIR = ROOT / "public"
@@ -35,9 +38,25 @@ def slugify(value: str) -> str:
     return slug or "filter"
 
 
+def normalize_package_path(path: str) -> str:
+    normalized = path.replace("\\", "/").strip("/")
+    segments = [segment for segment in normalized.split("/") if segment]
+    if not segments:
+        raise ValueError("empty zip entry path")
+    if any(segment in {".", ".."} for segment in segments):
+        raise ValueError(f"invalid zip entry path: {path}")
+    return "/".join(segments)
+
+
 def read_package(path: Path) -> dict:
+    if path.stat().st_size > MAX_PACKAGE_BYTES:
+        raise ValueError(f"{path}: package is too large")
     with zipfile.ZipFile(path) as archive:
-        names = [name for name in archive.namelist() if not name.endswith("/")]
+        names = [
+            normalize_package_path(name)
+            for name in archive.namelist()
+            if not name.endswith("/")
+        ]
         if len(names) != len(set(names)):
             raise ValueError(f"{path}: duplicate zip entries")
         if "manifest.json" not in names or "filter.cube" not in names:
@@ -47,7 +66,22 @@ def read_package(path: Path) -> dict:
             raise ValueError(f"{path}: unsupported schema")
         if manifest.get("bundleType") != BUNDLE_TYPE:
             raise ValueError(f"{path}: unsupported bundleType")
+        if manifest.get("cubePath") != "filter.cube":
+            raise ValueError(f"{path}: cubePath must be filter.cube")
+        if manifest.get("previewPath") not in {None, "preview.jpg"}:
+            raise ValueError(f"{path}: previewPath must be preview.jpg")
+        if manifest.get("licensePath") not in {None, "LICENSE.txt"}:
+            raise ValueError(f"{path}: licensePath must be LICENSE.txt")
+        expected_names = {"manifest.json", "filter.cube"}
+        if manifest.get("previewPath"):
+            expected_names.add(manifest["previewPath"])
+        if manifest.get("licensePath"):
+            expected_names.add(manifest["licensePath"])
+        if set(names) != expected_names:
+            raise ValueError(f"{path}: zip entries do not match manifest")
         cube = archive.read("filter.cube")
+        if len(cube) > MAX_CUBE_BYTES:
+            raise ValueError(f"{path}: cube is too large")
         if sha256_bytes(cube) != manifest.get("cubeSha256"):
             raise ValueError(f"{path}: cube checksum mismatch")
         if len(cube) != manifest.get("cubeSize"):
@@ -56,6 +90,8 @@ def read_package(path: Path) -> dict:
         preview_path = manifest.get("previewPath")
         if preview_path:
             preview = archive.read(preview_path)
+            if len(preview) > MAX_PREVIEW_BYTES:
+                raise ValueError(f"{path}: preview is too large")
             if sha256_bytes(preview) != manifest.get("previewSha256"):
                 raise ValueError(f"{path}: preview checksum mismatch")
             if len(preview) != manifest.get("previewSize"):
