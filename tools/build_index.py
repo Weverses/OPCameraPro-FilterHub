@@ -72,6 +72,11 @@ def read_package(path: Path) -> dict:
             raise ValueError(f"{path}: previewPath must be preview.jpg")
         if manifest.get("licensePath") not in {None, "LICENSE.txt"}:
             raise ValueError(f"{path}: licensePath must be LICENSE.txt")
+        for text_field in ("author", "license", "source"):
+            if text_field not in manifest:
+                raise ValueError(f"{path}: manifest is missing {text_field}")
+            if not isinstance(manifest[text_field], str):
+                raise ValueError(f"{path}: manifest {text_field} must be a string")
         expected_names = {"manifest.json", "filter.cube"}
         if manifest.get("previewPath"):
             expected_names.add(manifest["previewPath"])
@@ -132,6 +137,7 @@ def build_index() -> dict:
                 "version": "1",
                 "tags": manifest.get("tags", []),
                 "license": manifest.get("license", ""),
+                "source": manifest.get("source", ""),
                 "packageUrl": f"../filters/{package_sha}.opcfilter.zip",
                 "packageSha256": package_sha,
                 "packageSize": package_size,

@@ -17,8 +17,8 @@ body:
         社区投稿滤镜不属于 OPCameraPro 官方内容，OPCameraPro 不对其版权、来源、效果、合法性或后续争议作任何担保。
         投稿者需自行承担该滤镜包的版权、授权、合法性以及由此产生的一切责任。
 
-        After submission, automation will validate the `.opcfilter.zip` package. Valid packages may be published automatically.
-        提交后，自动流程会校验 `.opcfilter.zip` 包；校验通过的包可能会被自动发布。
+        After submission, automation will validate only the technical package format, checksums, size limits, and required files. Passing automation is not copyright, license, or legal approval.
+        提交后，自动流程只校验 `.opcfilter.zip` 的技术格式、校验和、大小限制和必要文件；自动校验通过不代表版权、授权或法律审核通过。
   - type: input
     id: display_name
     attributes:
@@ -38,6 +38,14 @@ body:
     attributes:
       label: Description / 描述
       description: Briefly describe the look, use case, and source. / 简要描述滤镜风格、用途和来源。
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Source / 来源
+      description: Explain how this LUT was created, or link/provide permission evidence if it was derived from someone else's work. / 请说明该 LUT 的创作来源；如基于他人作品，请提供链接或授权依据。
+      placeholder: Created by myself in ..., or permission from ... / 由我在 ... 中自行创作，或已获得 ... 授权。
     validations:
       required: true
   - type: dropdown
@@ -71,6 +79,8 @@ body:
         - label: I understand this is a community submission and is not official OPCameraPro content. / 我理解这是社区投稿内容，不代表 OPCameraPro 官方内容。
           required: true
         - label: I accept that copyright, licensing, legality, and related disputes are my own responsibility, not OPCameraPro's responsibility. / 我接受版权、授权、合法性及相关争议责任由我本人承担，与 OPCameraPro 无关。
+          required: true
+        - label: I understand automation only validates technical package format and does not perform copyright, license, or legal review. / 我理解自动流程只校验技术格式，不进行版权、授权或法律审核。
           required: true
         - label: I understand automation may reject unsafe, broken, duplicate, unauthorized, or unclear submissions. / 我理解自动流程可能拒绝不安全、损坏、重复、授权不明或信息不清的投稿。
           required: true
